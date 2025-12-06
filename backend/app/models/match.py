@@ -12,8 +12,8 @@ class WinnerEnum(str, enum.Enum):
 class MatchRecord(Base):
     __tablename__ = "match_records"
 
-    id = Column(String, primary_key=True, index=True)
-    player_name = Column(String, nullable=False, index=True)
+    id = Column(String(50), primary_key=True, index=True)
+    player_name = Column(String(100), nullable=False, index=True)
     player_score = Column(Integer, nullable=False)
     ai_score = Column(Integer, nullable=False)
     winner = Column(SQLEnum(WinnerEnum), nullable=False)

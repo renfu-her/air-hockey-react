@@ -25,11 +25,22 @@ cd backend
 # 使用 uv 同步依賴（會自動創建虛擬環境）
 uv sync
 
+# 如果使用 Python 3.14，需要設置環境變數來構建 pydantic-core
+# Windows (PowerShell)
+$env:PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1; uv sync
+# Linux/macOS
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 uv sync
+
 # 或者手動創建虛擬環境並安裝
 uv venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 uv pip install -e .
 ```
+
+### Python 版本要求
+
+- **要求**: Python 3.12 或更高版本
+- **推薦**: Python 3.12 或 3.13
 
 ## 運行 / Run
 
