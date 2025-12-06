@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameCanvas } from './components/GameCanvas';
 import { CountdownOverlay } from './components/CountdownOverlay';
 import { ResultModal } from './components/ResultModal';
@@ -18,6 +18,7 @@ export default function App() {
   const [playerName, setPlayerName] = useState('');
   const [matchResult, setMatchResult] = useState<MatchRecord | null>(null);
   const [leaderboard, setLeaderboard] = useState<MatchRecord[]>([]);
+  const isSavingRef = useRef(false); // 使用 ref 防止重复保存（避免闭包问题）
 
   // Load leaderboard on mount
   useEffect(() => {
@@ -30,18 +31,8 @@ export default function App() {
     loadLeaderboard();
   }, []); // 只在组件挂载时加载一次
 
-  // Reload leaderboard when game ends
-  useEffect(() => {
-    if (gameState.status === 'ENDED') {
-      const loadLeaderboard = async () => {
-        console.log('Reloading leaderboard after game end...');
-        const records = await getLeaderboard();
-        console.log('Leaderboard reloaded:', records.length, 'records');
-        setLeaderboard(records);
-      };
-      loadLeaderboard();
-    }
-  }, [gameState.status]); 
+  // 注意：不再需要这个 useEffect，因为 finishGame 已经会重新加载排行榜
+  // 保留这个可能会导致重复加载，但不会导致重复保存 
 
   // Reset Shortcut (Alt + R)
   const resetToHome = useCallback(() => {
@@ -52,6 +43,7 @@ export default function App() {
       countdown: COUNTDOWN_SECONDS // Reset countdown timer for next game
     });
     setMatchResult(null);
+    isSavingRef.current = false; // 重置保存标志
   }, []);
 
   useEffect(() => {
@@ -88,6 +80,7 @@ export default function App() {
       return;
     }
     setMatchResult(null);
+    isSavingRef.current = false; // 重置保存标志
     setGameState({
       status: 'COUNTDOWN',
       scores: { player: 0, ai: 0 },
@@ -97,11 +90,30 @@ export default function App() {
   };
 
   const handleScoreUpdate = (pScore: number, aScore: number) => {
+    console.log(`[handleScoreUpdate] Called with: Player=${pScore}, AI=${aScore}, WINNING_SCORE=${WINNING_SCORE}`);
+    
     // 使用函数式更新确保基于最新状态
     setGameState(prev => {
+      console.log(`[handleScoreUpdate] Current state: status=${prev.status}, scores=${prev.scores.player}-${prev.scores.ai}, isSaving=${isSavingRef.current}`);
+      
       // 检查是否达到获胜分数
-      if (pScore >= WINNING_SCORE || aScore >= WINNING_SCORE) {
+      const shouldEnd = pScore >= WINNING_SCORE || aScore >= WINNING_SCORE;
+      console.log(`[handleScoreUpdate] Should end? ${shouldEnd} (${pScore} >= ${WINNING_SCORE} || ${aScore} >= ${WINNING_SCORE})`);
+      
+      if (shouldEnd) {
+        // 如果游戏已经结束或正在保存，不重复处理
+        if (prev.status === 'ENDED') {
+          console.log('[handleScoreUpdate] Game already ended, skipping');
+          return prev;
+        }
+        
+        if (isSavingRef.current) {
+          console.log('[handleScoreUpdate] Already saving, but will still end game');
+          // 即使正在保存，也要结束游戏
+        }
+        
         const winner = pScore > aScore ? 'PLAYER' : 'AI';
+        console.log(`[handleScoreUpdate] Winner: ${winner}`);
         
         // 立即创建结果并显示，不等待API保存
         const result: MatchRecord = {
@@ -112,30 +124,50 @@ export default function App() {
           winner,
           date: Date.now()
         };
-        setMatchResult(result);
+        console.log('[handleScoreUpdate] Creating match result:', result);
         
-        // 异步保存到后端API并更新排行榜
+        // 立即设置 matchResult，确保结果模态框能显示
+        setMatchResult(result);
+        console.log('[handleScoreUpdate] Match result set immediately:', result);
+        
+        // 异步保存到后端API并更新排行榜（只保存一次）
         finishGame(pScore, aScore, winner, result);
         
-        return { ...prev, status: 'ENDED', scores: { player: pScore, ai: aScore }, winner };
+        const newState = { ...prev, status: 'ENDED' as const, scores: { player: pScore, ai: aScore }, winner };
+        console.log('[handleScoreUpdate] Setting game state to ENDED:', newState);
+        return newState;
       } else {
+        console.log(`[handleScoreUpdate] Updating scores: Player=${pScore}, AI=${aScore}`);
         return { ...prev, scores: { player: pScore, ai: aScore } };
       }
     });
   };
 
   const finishGame = async (pScore: number, aScore: number, winner: 'PLAYER' | 'AI', result: MatchRecord) => {
-    // 保存到后端API
-    const savedRecord = await saveMatch(result);
-    if (savedRecord) {
-      // 如果保存成功，使用服务器返回的记录（可能包含更新的ID等）
-      setMatchResult(savedRecord);
+    // 防止重复保存
+    if (isSavingRef.current) {
+      console.log('Already saving, skipping duplicate save');
+      return;
     }
-    // 如果保存失败，matchResult 已经设置为本地结果，所以不需要更新
     
-    // 重新加载排行榜
-    const records = await getLeaderboard();
-    setLeaderboard(records);
+    isSavingRef.current = true;
+    try {
+      // 保存到后端API
+      const savedRecord = await saveMatch(result);
+      if (savedRecord) {
+        // 如果保存成功，使用服务器返回的记录（可能包含更新的ID等）
+        setMatchResult(savedRecord);
+      }
+      // 如果保存失败，matchResult 已经设置为本地结果，所以不需要更新
+      
+      // 重新加载排行榜
+      const records = await getLeaderboard();
+      setLeaderboard(records);
+    } catch (error) {
+      console.error('Error in finishGame:', error);
+    } finally {
+      isSavingRef.current = false;
+    }
   };
 
   return (
@@ -248,7 +280,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Game Canvas - Always rendered but hidden if not needed, or just let it render */}
+          {/* Game Canvas - Always rendered when not idle (including when ended, to show final frame) */}
           {gameState.status !== 'IDLE' && (
             <div className="absolute inset-0 flex items-center justify-center z-10">
                <GameCanvas 
@@ -270,6 +302,16 @@ export default function App() {
               onHome={resetToHome} 
               onReplay={startGame} 
             />
+          )}
+          {/* Debug info */}
+          {gameState.status === 'ENDED' && !matchResult && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-red-900/50">
+              <div className="text-white p-4">
+                <p>Game ended but no match result!</p>
+                <p>Status: {gameState.status}</p>
+                <p>MatchResult: {matchResult ? 'exists' : 'null'}</p>
+              </div>
+            </div>
           )}
         </div>
       </div>

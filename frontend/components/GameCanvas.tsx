@@ -21,10 +21,11 @@ export const GameCanvas: React.FC<Props> = ({ gameState, onScoreUpdate }) => {
   // 使用 ref 跟踪当前分数，确保使用最新值
   const currentScoresRef = useRef({ player: 0, ai: 0 });
   
-  // 当 gameState.scores 更新时，同步到 ref
+  // 当 gameState.scores 更新时，同步到 ref（确保 ref 始终反映最新状态）
   useEffect(() => {
+    console.log('Syncing scores to ref:', gameState.scores, 'Status:', gameState.status);
     currentScoresRef.current = gameState.scores;
-  }, [gameState.scores]);
+  }, [gameState.scores, gameState.status]);
   
   // Mutable game state for physics loop
   const physicsState = useRef({
@@ -45,6 +46,10 @@ export const GameCanvas: React.FC<Props> = ({ gameState, onScoreUpdate }) => {
   };
 
   const resetPuck = (scorer: 'PLAYER' | 'AI') => {
+    // 如果游戏已经结束，不重置球
+    if (gameState.status !== 'PLAYING') {
+      return;
+    }
     physicsState.current.puck = {
       x: CANVAS_WIDTH / 2,
       y: CANVAS_HEIGHT / 2,
@@ -143,16 +148,35 @@ export const GameCanvas: React.FC<Props> = ({ gameState, onScoreUpdate }) => {
       if (puck.x > goalLeft && puck.x < goalRight) {
         if (!state.isScoring && gameState.status === 'PLAYING') {
           state.isScoring = true;
-          // 使用 ref 中的最新分数，而不是可能过时的 gameState.scores
-          const newPlayerScore = currentScoresRef.current.player + 1;
-          const newAiScore = currentScoresRef.current.ai;
+          // 使用 ref 中的最新分数，确保使用最新值（不依赖异步的 gameState.scores）
+          const currentPlayerScore = currentScoresRef.current.player;
+          const currentAiScore = currentScoresRef.current.ai;
+          const newPlayerScore = currentPlayerScore + 1;
+          const newAiScore = currentAiScore;
+          
+          console.log(`Player scores! Current: ${currentPlayerScore}-${currentAiScore}, New: ${newPlayerScore}-${newAiScore}`);
+          
+          // 立即更新 ref，确保下次使用最新值
+          currentScoresRef.current = { player: newPlayerScore, ai: newAiScore };
+          
+          // 调用 onScoreUpdate 更新分数（无论是否达到获胜分数）
           onScoreUpdate(newPlayerScore, newAiScore);
-          // 如果达到获胜分数，立即停止游戏，不重置球
+          
+          // 检查是否达到获胜分数
           if (newPlayerScore >= WINNING_SCORE || newAiScore >= WINNING_SCORE) {
-            // 游戏结束，停止物理引擎
+            console.log(`Game ended! Player: ${newPlayerScore}, AI: ${newAiScore}`);
+            // 游戏结束，停止物理引擎，不重置球
+            // 设置状态标志，防止继续运行
+            state.isScoring = false; // 重置标志，但不会重置球
             return;
           }
-          setTimeout(() => resetPuck('PLAYER'), 1000);
+          
+          // 未达到获胜分数，重置球继续游戏
+          setTimeout(() => {
+            if (gameState.status === 'PLAYING') {
+              resetPuck('PLAYER');
+            }
+          }, 1000);
         }
       } else {
         puck.y = PUCK_RADIUS;
@@ -164,16 +188,36 @@ export const GameCanvas: React.FC<Props> = ({ gameState, onScoreUpdate }) => {
       if (puck.x > goalLeft && puck.x < goalRight) {
         if (!state.isScoring && gameState.status === 'PLAYING') {
             state.isScoring = true;
-            // 使用 ref 中的最新分数，而不是可能过时的 gameState.scores
-            const newPlayerScore = currentScoresRef.current.player;
-            const newAiScore = currentScoresRef.current.ai + 1;
+            // 使用 ref 中的最新分数，确保使用最新值（不依赖异步的 gameState.scores）
+            const currentPlayerScore = currentScoresRef.current.player;
+            const currentAiScore = currentScoresRef.current.ai;
+            const newPlayerScore = currentPlayerScore;
+            const newAiScore = currentAiScore + 1;
+            
+            console.log(`AI scores! Current ref: ${currentPlayerScore}-${currentAiScore}, gameState: ${gameState.scores.player}-${gameState.scores.ai}, New: ${newPlayerScore}-${newAiScore}`);
+            
+            // 立即更新 ref，确保下次使用最新值
+            currentScoresRef.current = { player: newPlayerScore, ai: newAiScore };
+            
+            // 调用 onScoreUpdate 更新分数（无论是否达到获胜分数）
+            console.log(`Calling onScoreUpdate with: ${newPlayerScore}-${newAiScore}`);
             onScoreUpdate(newPlayerScore, newAiScore);
-            // 如果达到获胜分数，立即停止游戏，不重置球
+            
+            // 检查是否达到获胜分数
             if (newPlayerScore >= WINNING_SCORE || newAiScore >= WINNING_SCORE) {
-              // 游戏结束，停止物理引擎
+              console.log(`Game ended in GameCanvas! Player: ${newPlayerScore}, AI: ${newAiScore}, WINNING_SCORE: ${WINNING_SCORE}`);
+              // 游戏结束，停止物理引擎，不重置球
+              // 设置状态标志，防止继续运行
+              state.isScoring = false; // 重置标志，但不会重置球
               return;
             }
-            setTimeout(() => resetPuck('AI'), 1000);
+            
+            // 未达到获胜分数，重置球继续游戏
+            setTimeout(() => {
+              if (gameState.status === 'PLAYING') {
+                resetPuck('AI');
+              }
+            }, 1000);
         }
       } else {
         puck.y = CANVAS_HEIGHT - PUCK_RADIUS;
@@ -375,15 +419,50 @@ export const GameCanvas: React.FC<Props> = ({ gameState, onScoreUpdate }) => {
   }, []);
 
   const loop = useCallback((time: number) => {
+    // 如果游戏已结束，绘制最后一帧然后停止循环
+    if (gameState.status === 'ENDED') {
+      // 绘制最后一帧，确保 paddle 和 puck 都显示
+      draw();
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = undefined;
+      }
+      return;
+    }
+    
     updatePhysics(); 
     draw();
-    requestRef.current = requestAnimationFrame(loop);
-  }, [draw, updatePhysics]);
+    
+    // 只有在游戏进行中时才继续循环
+    if (gameState.status === 'PLAYING' || gameState.status === 'COUNTDOWN') {
+      requestRef.current = requestAnimationFrame(loop);
+    }
+  }, [draw, updatePhysics, gameState.status]);
 
   useEffect(() => {
-    requestRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(requestRef.current!);
-  }, [loop]);
+    // 只有在游戏进行中或倒计时时才启动循环
+    if (gameState.status === 'PLAYING' || gameState.status === 'COUNTDOWN') {
+      requestRef.current = requestAnimationFrame(loop);
+    } else if (gameState.status === 'ENDED') {
+      // 游戏结束时，绘制最后一帧然后停止循环
+      draw();
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = undefined;
+      }
+    } else {
+      // 游戏空闲时，停止循环
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = undefined;
+      }
+    }
+    return () => {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+    };
+  }, [loop, gameState.status, draw]);
 
   // --- Input Handling ---
   const handleInput = useCallback((clientX: number, clientY: number) => {
@@ -437,8 +516,14 @@ export const GameCanvas: React.FC<Props> = ({ gameState, onScoreUpdate }) => {
         physicsState.current.puck.y = CANVAS_HEIGHT / 2;
         physicsState.current.puck.vx = 0;
         physicsState.current.puck.vy = 0;
+        // 重置 isScoring 标志
+        physicsState.current.isScoring = false;
     }
-  }, [gameState.status]);
+    // 当游戏状态改变时，同步分数到 ref
+    if (gameState.status === 'PLAYING' || gameState.status === 'COUNTDOWN') {
+      currentScoresRef.current = gameState.scores;
+    }
+  }, [gameState.status, gameState.scores]);
 
   return (
     // Changed: Simple fill container that respects aspect ratio via logic or padding

@@ -33,12 +33,15 @@ def get_leaderboard(db: Session, limit: int = 50) -> list[MatchRecord]:
 
 def to_response(record: MatchRecord) -> MatchRecordResponse:
     """將數據庫模型轉換為響應模型"""
+    # 將 WinnerEnum 轉換為字符串值
+    winner_value = record.winner.value if isinstance(record.winner, WinnerEnum) else str(record.winner)
+    
     return MatchRecordResponse(
         id=record.id,
         player_name=record.player_name,
         player_score=record.player_score,
         ai_score=record.ai_score,
-        winner=record.winner,
+        winner=winner_value,  # 使用字符串值
         date=int(record.date.timestamp() * 1000)  # 轉換為毫秒時間戳
     )
 
