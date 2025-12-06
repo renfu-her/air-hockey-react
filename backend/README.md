@@ -49,11 +49,18 @@ uv pip install -e .
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # 或者使用啟動腳本
-# Linux/macOS
+# Linux/macOS (開發模式)
 ./run.sh
 
-# Windows
+# Windows (開發模式)
 run.bat
+
+# 生產模式腳本
+# Linux/macOS
+./run-prod.sh
+
+# Windows
+run-prod.bat
 
 # 或者激活虛擬環境後運行
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
