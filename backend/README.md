@@ -1,0 +1,134 @@
+# Air Hockey Leaderboard Backend
+
+FastAPI backend for Air Hockey game leaderboard.
+
+## 功能 / Features
+
+- 獲取排行榜 / Get leaderboard
+- 提交比賽記錄 / Submit match records
+- SQLite 數據庫存儲 / SQLite database storage
+
+## 安裝 / Installation
+
+使用 `uv` 進行依賴管理：
+
+```bash
+# 安裝 uv (如果還沒安裝)
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 進入 backend 目錄
+cd backend
+
+# 使用 uv 同步依賴（會自動創建虛擬環境）
+uv sync
+
+# 或者手動創建虛擬環境並安裝
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+uv pip install -e .
+```
+
+## 運行 / Run
+
+```bash
+# 使用 uv 運行（推薦）
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 或者使用啟動腳本
+# Linux/macOS
+./run.sh
+
+# Windows
+run.bat
+
+# 或者激活虛擬環境後運行
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 生產模式
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+API 文檔將在以下地址可用：
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+## API Endpoints
+
+### GET /api/leaderboard
+獲取排行榜記錄
+
+**查詢參數:**
+- `limit` (可選): 返回記錄數量，默認 50
+
+**響應:**
+```json
+{
+  "records": [
+    {
+      "id": "1234567890",
+      "player_name": "Player1",
+      "player_score": 3,
+      "ai_score": 1,
+      "winner": "PLAYER",
+      "date": 1234567890000
+    }
+  ]
+}
+```
+
+### POST /api/matches
+提交新的比賽記錄
+
+**請求體:**
+```json
+{
+  "player_name": "Player1",
+  "player_score": 3,
+  "ai_score": 1,
+  "winner": "PLAYER",
+  "date": 1234567890000
+}
+```
+
+**響應:**
+```json
+{
+  "id": "1234567890",
+  "player_name": "Player1",
+  "player_score": 3,
+  "ai_score": 1,
+  "winner": "PLAYER",
+  "date": 1234567890000
+}
+```
+
+## 數據庫 / Database
+
+使用 MySQL 數據庫。
+
+### 配置環境變數
+
+在 `backend` 目錄下創建 `.env` 文件：
+
+```env
+# MySQL 數據庫配置
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=air-hockey
+```
+
+### 數據庫設置
+
+1. 確保 MySQL 服務正在運行
+2. 創建數據庫（如果不存在）：
+   ```sql
+   CREATE DATABASE IF NOT EXISTS `air-hockey` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+3. 數據庫表會在首次運行時自動創建
+

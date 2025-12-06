@@ -1,0 +1,20 @@
+[project]
+name = "air-hockey-backend"
+version = "1.0.0"
+description = "FastAPI backend for Air Hockey game leaderboard"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn[standard]==0.32.0",
+    "sqlalchemy==2.0.36",
+    "pydantic==2.9.2",
+    "pydantic-settings==2.5.0",
+    "python-multipart==0.0.12",
+    "pymysql==1.1.1",
+    "cryptography==43.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
