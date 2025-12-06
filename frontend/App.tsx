@@ -3,7 +3,7 @@ import { GameCanvas } from './components/GameCanvas';
 import { CountdownOverlay } from './components/CountdownOverlay';
 import { ResultModal } from './components/ResultModal';
 import { GameState, MatchRecord } from './types';
-import { getLeaderboard, saveMatch } from './services/storageService';
+import { getLeaderboard, saveMatch } from './services/apiService';
 import { COUNTDOWN_SECONDS, WINNING_SCORE, COLOR_PLAYER, COLOR_AI } from './constants';
 import { Trophy, Play, User, Keyboard } from 'lucide-react';
 
@@ -21,7 +21,11 @@ export default function App() {
 
   // Load leaderboard on mount and update when game ends
   useEffect(() => {
-    setLeaderboard(getLeaderboard());
+    const loadLeaderboard = async () => {
+      const records = await getLeaderboard();
+      setLeaderboard(records);
+    };
+    loadLeaderboard();
   }, [gameState.status]); 
 
   // Reset Shortcut (Alt + R)
@@ -89,7 +93,7 @@ export default function App() {
     }
   };
 
-  const finishGame = (pScore: number, aScore: number, winner: 'PLAYER' | 'AI') => {
+  const finishGame = async (pScore: number, aScore: number, winner: 'PLAYER' | 'AI') => {
     const result: MatchRecord = {
       id: Date.now().toString(),
       playerName: playerName,
@@ -99,9 +103,19 @@ export default function App() {
       date: Date.now()
     };
     
-    saveMatch(result);
-    setMatchResult(result);
+    // 保存到后端API
+    const savedRecord = await saveMatch(result);
+    if (savedRecord) {
+      setMatchResult(savedRecord);
+    } else {
+      // 如果保存失败，仍然显示结果（使用本地数据）
+      setMatchResult(result);
+    }
     setGameState(prev => ({ ...prev, status: 'ENDED', scores: { player: pScore, ai: aScore }, winner }));
+    
+    // 重新加载排行榜
+    const records = await getLeaderboard();
+    setLeaderboard(records);
   };
 
   return (
