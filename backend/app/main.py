@@ -14,12 +14,14 @@ app = FastAPI(
 )
 
 # 配置 CORS - 允許前端連接
+print(f"CORS allowed origins: {settings.cors_origins_list}")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # 註冊路由

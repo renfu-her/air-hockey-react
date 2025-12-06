@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { 
   CANVAS_WIDTH, CANVAS_HEIGHT, PUCK_RADIUS, PADDLE_RADIUS, 
   GOAL_SIZE, FRICTION, WALL_BOUNCE, MAX_SPEED, AI_SPEED_FACTOR,
-  COLOR_AI, COLOR_PLAYER, COLOR_TABLE_DARK, COLOR_TABLE_LINES
+  COLOR_AI, COLOR_PLAYER, COLOR_TABLE_DARK, COLOR_TABLE_LINES, WINNING_SCORE
 } from '../constants';
 import { GameState, Vector } from '../types';
 
@@ -17,6 +17,14 @@ export const GameCanvas: React.FC<Props> = ({ gameState, onScoreUpdate }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>();
+  
+  // 使用 ref 跟踪当前分数，确保使用最新值
+  const currentScoresRef = useRef({ player: 0, ai: 0 });
+  
+  // 当 gameState.scores 更新时，同步到 ref
+  useEffect(() => {
+    currentScoresRef.current = gameState.scores;
+  }, [gameState.scores]);
   
   // Mutable game state for physics loop
   const physicsState = useRef({
@@ -133,9 +141,17 @@ export const GameCanvas: React.FC<Props> = ({ gameState, onScoreUpdate }) => {
     // Top Wall (AI Goal - Player Scores)
     if (puck.y - PUCK_RADIUS < 0) {
       if (puck.x > goalLeft && puck.x < goalRight) {
-        if (!state.isScoring) {
+        if (!state.isScoring && gameState.status === 'PLAYING') {
           state.isScoring = true;
-          onScoreUpdate(gameState.scores.player + 1, gameState.scores.ai);
+          // 使用 ref 中的最新分数，而不是可能过时的 gameState.scores
+          const newPlayerScore = currentScoresRef.current.player + 1;
+          const newAiScore = currentScoresRef.current.ai;
+          onScoreUpdate(newPlayerScore, newAiScore);
+          // 如果达到获胜分数，立即停止游戏，不重置球
+          if (newPlayerScore >= WINNING_SCORE || newAiScore >= WINNING_SCORE) {
+            // 游戏结束，停止物理引擎
+            return;
+          }
           setTimeout(() => resetPuck('PLAYER'), 1000);
         }
       } else {
@@ -146,9 +162,17 @@ export const GameCanvas: React.FC<Props> = ({ gameState, onScoreUpdate }) => {
     // Bottom Wall (Player Goal - AI Scores)
     else if (puck.y + PUCK_RADIUS > CANVAS_HEIGHT) {
       if (puck.x > goalLeft && puck.x < goalRight) {
-        if (!state.isScoring) {
+        if (!state.isScoring && gameState.status === 'PLAYING') {
             state.isScoring = true;
-            onScoreUpdate(gameState.scores.player, gameState.scores.ai + 1);
+            // 使用 ref 中的最新分数，而不是可能过时的 gameState.scores
+            const newPlayerScore = currentScoresRef.current.player;
+            const newAiScore = currentScoresRef.current.ai + 1;
+            onScoreUpdate(newPlayerScore, newAiScore);
+            // 如果达到获胜分数，立即停止游戏，不重置球
+            if (newPlayerScore >= WINNING_SCORE || newAiScore >= WINNING_SCORE) {
+              // 游戏结束，停止物理引擎
+              return;
+            }
             setTimeout(() => resetPuck('AI'), 1000);
         }
       } else {

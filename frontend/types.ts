@@ -14,7 +14,7 @@ export interface GameState {
 }
 
 export interface MatchRecord {
-  id: string;
+  id: number | string; // number 是后端返回的，string 是临时本地使用的
   playerName: string;
   playerScore: number;
   aiScore: number;

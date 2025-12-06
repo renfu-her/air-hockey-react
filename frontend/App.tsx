@@ -19,13 +19,28 @@ export default function App() {
   const [matchResult, setMatchResult] = useState<MatchRecord | null>(null);
   const [leaderboard, setLeaderboard] = useState<MatchRecord[]>([]);
 
-  // Load leaderboard on mount and update when game ends
+  // Load leaderboard on mount
   useEffect(() => {
     const loadLeaderboard = async () => {
+      console.log('Loading leaderboard...');
       const records = await getLeaderboard();
+      console.log('Leaderboard loaded:', records.length, 'records');
       setLeaderboard(records);
     };
     loadLeaderboard();
+  }, []); // 只在组件挂载时加载一次
+
+  // Reload leaderboard when game ends
+  useEffect(() => {
+    if (gameState.status === 'ENDED') {
+      const loadLeaderboard = async () => {
+        console.log('Reloading leaderboard after game end...');
+        const records = await getLeaderboard();
+        console.log('Leaderboard reloaded:', records.length, 'records');
+        setLeaderboard(records);
+      };
+      loadLeaderboard();
+    }
   }, [gameState.status]); 
 
   // Reset Shortcut (Alt + R)
@@ -82,36 +97,41 @@ export default function App() {
   };
 
   const handleScoreUpdate = (pScore: number, aScore: number) => {
-    if (pScore >= WINNING_SCORE || aScore >= WINNING_SCORE) {
-      const winner = pScore > aScore ? 'PLAYER' : 'AI';
-      finishGame(pScore, aScore, winner);
-    } else {
-      setGameState(prev => ({
-        ...prev,
-        scores: { player: pScore, ai: aScore }
-      }));
-    }
+    // 使用函数式更新确保基于最新状态
+    setGameState(prev => {
+      // 检查是否达到获胜分数
+      if (pScore >= WINNING_SCORE || aScore >= WINNING_SCORE) {
+        const winner = pScore > aScore ? 'PLAYER' : 'AI';
+        
+        // 立即创建结果并显示，不等待API保存
+        const result: MatchRecord = {
+          id: Date.now().toString(),
+          playerName: playerName,
+          playerScore: pScore,
+          aiScore: aScore,
+          winner,
+          date: Date.now()
+        };
+        setMatchResult(result);
+        
+        // 异步保存到后端API并更新排行榜
+        finishGame(pScore, aScore, winner, result);
+        
+        return { ...prev, status: 'ENDED', scores: { player: pScore, ai: aScore }, winner };
+      } else {
+        return { ...prev, scores: { player: pScore, ai: aScore } };
+      }
+    });
   };
 
-  const finishGame = async (pScore: number, aScore: number, winner: 'PLAYER' | 'AI') => {
-    const result: MatchRecord = {
-      id: Date.now().toString(),
-      playerName: playerName,
-      playerScore: pScore,
-      aiScore: aScore,
-      winner,
-      date: Date.now()
-    };
-    
+  const finishGame = async (pScore: number, aScore: number, winner: 'PLAYER' | 'AI', result: MatchRecord) => {
     // 保存到后端API
     const savedRecord = await saveMatch(result);
     if (savedRecord) {
+      // 如果保存成功，使用服务器返回的记录（可能包含更新的ID等）
       setMatchResult(savedRecord);
-    } else {
-      // 如果保存失败，仍然显示结果（使用本地数据）
-      setMatchResult(result);
     }
-    setGameState(prev => ({ ...prev, status: 'ENDED', scores: { player: pScore, ai: aScore }, winner }));
+    // 如果保存失败，matchResult 已经设置为本地结果，所以不需要更新
     
     // 重新加载排行榜
     const records = await getLeaderboard();

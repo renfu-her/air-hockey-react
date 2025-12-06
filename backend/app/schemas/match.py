@@ -11,7 +11,7 @@ class MatchRecordCreate(BaseModel):
 
 
 class MatchRecordResponse(BaseModel):
-    id: str
+    id: int
     player_name: str
     player_score: int
     ai_score: int

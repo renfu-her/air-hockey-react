@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api", tags=["leaderboard"])
 def create_match_record(db: Session, record: MatchRecordCreate) -> MatchRecord:
     """創建新的比賽記錄"""
     db_record = MatchRecord(
-        id=str(record.date),  # 使用 timestamp 作為 ID（前端使用 Date.now()）
+        # id 會自動生成，不需要手動設置
         player_name=record.player_name,
         player_score=record.player_score,
         ai_score=record.ai_score,
@@ -34,7 +34,7 @@ def get_leaderboard(db: Session, limit: int = 50) -> list[MatchRecord]:
 def to_response(record: MatchRecord) -> MatchRecordResponse:
     """將數據庫模型轉換為響應模型"""
     return MatchRecordResponse(
-        id=str(record.id),
+        id=record.id,
         player_name=record.player_name,
         player_score=record.player_score,
         ai_score=record.ai_score,

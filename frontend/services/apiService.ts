@@ -4,7 +4,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 
 // 后端API响应格式（snake_case）
 interface MatchRecordResponse {
-  id: string;
+  id: number;
   player_name: string;
   player_score: number;
   ai_score: number;
@@ -51,16 +51,30 @@ function toBackendRecord(record: MatchRecord): {
  */
 export async function getLeaderboard(limit: number = 50): Promise<MatchRecord[]> {
   try {
+    console.log(`Fetching leaderboard from ${API_BASE_URL}/api/leaderboard?limit=${limit}`);
     const response = await fetch(`${API_BASE_URL}/api/leaderboard?limit=${limit}`);
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
+      let errorMessage = `Failed to fetch leaderboard: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.detail) {
+          errorMessage += ` - ${errorData.detail}`;
+        }
+      } catch {
+        // 忽略 JSON 解析错误
+      }
+      console.error('Leaderboard API error:', errorMessage);
+      throw new Error(errorMessage);
     }
     
     const data: LeaderboardResponse = await response.json();
-    return data.records.map(toFrontendRecord);
+    console.log('Leaderboard API response:', data);
+    const records = data.records.map(toFrontendRecord);
+    console.log('Converted records:', records);
+    return records;
   } catch (error) {
-    console.error('Failed to load leaderboard from API', error);
+    console.error('Failed to load leaderboard from API:', error);
     // 如果API失败，返回空数组
     return [];
   }
@@ -72,16 +86,28 @@ export async function getLeaderboard(limit: number = 50): Promise<MatchRecord[]>
  */
 export async function saveMatch(record: MatchRecord): Promise<MatchRecord | null> {
   try {
+    const requestBody = toBackendRecord(record);
+    console.log('Saving match to API:', requestBody);
+    
     const response = await fetch(`${API_BASE_URL}/api/matches`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(toBackendRecord(record)),
+      body: JSON.stringify(requestBody),
     });
     
     if (!response.ok) {
-      throw new Error(`Failed to save match: ${response.statusText}`);
+      let errorMessage = `Failed to save match: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.detail) {
+          errorMessage += ` - ${errorData.detail}`;
+        }
+      } catch {
+        // 忽略 JSON 解析错误
+      }
+      throw new Error(errorMessage);
     }
     
     const data: MatchRecordResponse = await response.json();

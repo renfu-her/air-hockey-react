@@ -143,3 +143,24 @@ DB_NAME=air-hockey
    ```
 3. 數據庫表會在首次運行時自動創建
 
+### 數據庫遷移
+
+如果數據庫表已經存在，需要修改表結構（例如將 id 從 String 改為 Integer），可以使用遷移腳本：
+
+#### 選項 1：刪除舊表並重新創建（會丟失所有數據）
+```bash
+cd backend
+python migrate_id_to_integer.py
+```
+
+#### 選項 2：保留現有數據（推薦）
+```bash
+cd backend
+python migrate_preserve_data.py
+```
+
+**注意：**
+- 遷移前請務必備份數據庫
+- 如果表不存在，遷移腳本會自動創建新表
+- 保留數據的版本會嘗試恢復現有記錄，但 id 會重新自動生成
+
