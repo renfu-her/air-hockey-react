@@ -59,8 +59,11 @@ run.bat
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# 生產模式
+# 生產模式（使用 uvicorn）
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# 生產模式（使用 gunicorn + uvicorn workers，推薦）
+uv run gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
 
 API 文檔將在以下地址可用：
