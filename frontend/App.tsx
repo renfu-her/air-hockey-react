@@ -184,22 +184,26 @@ export default function App() {
       <div className="w-full h-[100dvh] md:h-[95vh] md:max-w-[450px] md:rounded-3xl md:border-[8px] md:border-slate-800 bg-slate-900 shadow-2xl flex flex-col relative overflow-hidden">
         
         {/* Header / Scoreboard */}
-        <div className="w-full h-[80px] shrink-0 flex items-center justify-between px-6 bg-slate-900 z-20 border-b border-slate-800/50">
+        <div className="w-full h-[70px] shrink-0 flex items-center justify-between px-6 pt-2 pb-2 bg-slate-900 z-20 border-b border-slate-800/50">
           {gameState.status !== 'IDLE' ? (
             <>
               <div className="flex flex-col items-start">
-                <span className="text-[10px] text-[#ff003c] font-extrabold tracking-widest uppercase mb-1">YOU</span>
+                <span className="text-[10px] text-[#ff003c] font-extrabold tracking-widest uppercase mb-0.5">YOU</span>
                 <span className="text-4xl font-mono text-white font-bold drop-shadow-[0_0_10px_rgba(255,0,60,0.6)]">
                   {gameState.scores.player}
                 </span>
               </div>
               
-              <div className="flex flex-col items-center">
-                 <div className="w-[1px] h-8 bg-slate-700/50"></div>
+              <div className="flex flex-col items-center gap-1">
+                 <div className="w-[1px] h-6 bg-slate-700/50"></div>
+                 <div className="px-3 py-1 bg-slate-800/80 rounded-full border border-slate-700/50">
+                   <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">TARGET: </span>
+                   <span className="text-xs text-white font-black">{WINNING_SCORE}</span>
+                 </div>
               </div>
 
               <div className="flex flex-col items-end">
-                <span className="text-[10px] text-[#00f0ff] font-extrabold tracking-widest uppercase mb-1">CPU</span>
+                <span className="text-[10px] text-[#00f0ff] font-extrabold tracking-widest uppercase mb-0.5">CPU</span>
                 <span className="text-4xl font-mono text-white font-bold drop-shadow-[0_0_10px_rgba(0,240,255,0.6)]">
                   {gameState.scores.ai}
                 </span>
